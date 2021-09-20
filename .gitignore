@@ -6,3 +6,6 @@ venv
 
 # Environment config file
 .env
+
+# Byte-compiled
+*.pyc
