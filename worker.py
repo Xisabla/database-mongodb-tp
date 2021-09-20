@@ -1,9 +1,22 @@
+"""Run station worker
+
+Usage:
+    worker.py [-h | --help] [-d | --dry] [-v | --verbose] [--refresh=<s>]
+
+Options:
+    -h --help       Show this screen
+    -d --dry        Don't save entries to the database
+    --refresh=<s>   Time between two worker runs
+    -v --verbose    Show details while running the worker
+"""
 import json
 import os
+import sys
 import requests
 import time
 from database import db
 from datetime import datetime
+from docopt import docopt
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,6 +32,7 @@ API_BASEURL_RENNES = "https://data.rennesmetropole.fr/api/records/1.0/search/" \
 
 # Worker configuration
 REFRESH_DELAY = int(os.getenv("WORKER_REFRESH_DELAY"))
+
 
 # --------------------------------------- STATION GETTERS --------------------------------------- #
 
@@ -176,6 +190,8 @@ def worker(refresh_delay=600, save=True, verbose=True):
     :param verbose: If set on true, will show debug information
     """
     if verbose:
+        if not save:
+            sys.stdout.write("[DRY MODE] ")
         print("Worker running, refresh rate: {} seconds".format(refresh_delay))
 
     while True:
@@ -199,8 +215,28 @@ def worker(refresh_delay=600, save=True, verbose=True):
         time.sleep(refresh_delay)
 
 
-if __name__ == '__main__':
+def main():
+    args = docopt(__doc__)
+
+    # Defaults
+    dry = False
+    refresh_delay = REFRESH_DELAY
+    verbose = False
+
+    # Values from arguments
+    if args['--verbose']:
+        verbose = True
+    if args['--dry']:
+        dry = True
+    if args['--refresh']:
+        refresh_delay = args['--refresh']
+
+    # Run worker
     try:
-        worker(refresh_delay=REFRESH_DELAY)
+        worker(refresh_delay=refresh_delay, save=not dry, verbose=verbose)
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == '__main__':
+    main()
