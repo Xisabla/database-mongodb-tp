@@ -1,12 +1,10 @@
 import json
 import os
 import requests
-import sys
 import time
+from database import db
 from datetime import datetime
 from dotenv import load_dotenv
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, ConfigurationError
 
 load_dotenv()
 
@@ -19,21 +17,8 @@ API_BASEURL_PARIS = "https://opendata.paris.fr/api/records/1.0/search/?dataset=v
 API_BASEURL_RENNES = "https://data.rennesmetropole.fr/api/records/1.0/search/" \
                      "?dataset=etat-des-stations-le-velo-star-en-temps-reel"
 
-# Database url
-ATLAS_URL = os.getenv("ATLAS_URL")
-
 # Worker configuration
 REFRESH_DELAY = int(os.getenv("WORKER_REFRESH_DELAY"))
-
-# ----------------------------------- DATABASE INITIALIZATION ----------------------------------- #
-
-try:
-    client = MongoClient(ATLAS_URL)
-except (ConnectionFailure, ConfigurationError) as e:
-    sys.exit("Failed worker initialization: " + str(e))
-
-db = client.gautier
-
 
 # --------------------------------------- STATION GETTERS --------------------------------------- #
 
@@ -180,16 +165,18 @@ def get_raw_stations_rennes():
 # ------------------------------------------- WORKER -------------------------------------------- #
 
 
-def worker(save=True, verbose=True):
+def worker(refresh_delay=600, save=True, verbose=True):
     """
     Run worker to insert new entries
+    :type refresh_delay: int
+    :param refresh_delay: Delay between 2 worker's run
     :type save: bool
     :param save: If set on true, will save entries to the database
     :type verbose: bool
     :param verbose: If set on true, will show debug information
     """
     if verbose:
-        print("Worker running, refresh rate: {} seconds".format(REFRESH_DELAY))
+        print("Worker running, refresh rate: {} seconds".format(refresh_delay))
 
     while True:
         [lille, lyon, paris, rennes] = [get_stations_lille(), get_stations_lyon(), get_stations_paris(),
@@ -209,11 +196,11 @@ def worker(save=True, verbose=True):
             if verbose:
                 print("{}: Saved entries to database".format(datetime.now()))
 
-        time.sleep(REFRESH_DELAY)
+        time.sleep(refresh_delay)
 
 
 if __name__ == '__main__':
     try:
-        worker(save=True)
+        worker(refresh_delay=REFRESH_DELAY)
     except KeyboardInterrupt:
         pass
