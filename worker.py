@@ -229,7 +229,7 @@ def main():
     if args['--dry']:
         dry = True
     if args['--refresh']:
-        refresh_delay = args['--refresh']
+        refresh_delay = int(args['--refresh'])
 
     # Run worker
     try:
