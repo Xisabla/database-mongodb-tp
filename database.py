@@ -1,7 +1,7 @@
 import os
 import sys
 from dotenv import load_dotenv
-from pymongo import MongoClient, GEO2D
+from pymongo import MongoClient, GEOSPHERE
 from pymongo.errors import PyMongoError
 
 load_dotenv()
@@ -17,7 +17,7 @@ except PyMongoError as e:
 # TODO: Change for production (main branch)
 db = client.gautier
 
-db.lille.create_index([("geometry", GEO2D)])
-db.lyon.create_index([('geometry', GEO2D)])
-db.paris.create_index([('geometry', GEO2D)])
-db.rennes.create_index([('geometry', GEO2D)])
+db.lille.create_index([("geometry", GEOSPHERE)])
+db.lyon.create_index([("geometry", GEOSPHERE)])
+db.paris.create_index([("geometry", GEOSPHERE)])
+db.rennes.create_index([("geometry", GEOSPHERE)])

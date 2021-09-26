@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Run station worker
 
 Usage:
@@ -45,7 +46,7 @@ def get_stations_lille():
     return [
         {
             "name": s.get("fields", {}).get("nom").title(),
-            "geometry": s.get("fields", {}).get("localisation"),
+            "geometry": s.get("geometry"),
             "size": s.get("fields", {}).get("nbvelosdispo") + s.get("fields", {}).get("nbplacesdispo"),
             "tpe": s.get("fields", {}).get("type") == "AVEC TPE",
             "available": s.get("fields", {}).get("nbvelosdispo"),
@@ -63,7 +64,7 @@ def get_stations_lyon():
     return [
         {
             "name": s.get("properties", {}).get("nom").title(),
-            "geometry": s.get("geometry", {}).get("coordinates"),
+            "geometry": s.get("geometry"),
             "size": s.get("properties", {}).get("nbbornettes"),
             "tpe": False,  # No information in API response, False by default
             "available": -1,  # No information in API response, -1 by default
@@ -81,7 +82,7 @@ def get_stations_paris():
     return [
         {
             "name": s.get("fields", {}).get("name").title(),
-            "geometry": s.get("fields", {}).get("coordonnees_geo"),
+            "geometry": s.get("geometry"),
             "size": s.get("fields", {}).get("capacity"),
             "tpe": s.get("fields", {}).get("is_installed") == "OUI",
             "available": s.get("fields", {}).get("numbikesavailable"),
@@ -99,7 +100,7 @@ def get_stations_rennes():
     return [
         {
             "name": s.get("fields", {}).get("nom").title(),
-            "geometry": s.get("fields", {}).get("coordonnees"),
+            "geometry": s.get("geometry"),
             "size": s.get("fields", {}).get("nombreemplacementsactuels"),
             "tpe": False,  # No information in API response, False by default
             "available": s.get("fields", {}).get("nombrevelosdisponibles"),
