@@ -42,4 +42,10 @@ see: [`find_station.py`](find_station.py)
 - update station
 - delete station
 
+```bash
+./operations.py find <city> <pattern>
+./operations.py delete <city> <station>
+./operations.py update <city> <station>
+```
+
 see: [`operations.py`](operations.py)
