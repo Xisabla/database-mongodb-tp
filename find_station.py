@@ -15,6 +15,15 @@ from pymongo import ASCENDING, DESCENDING
 
 
 def find_geo_stations(lat, lon, target, limit):
+    # type: (long, long, str, int) -> object
+    """
+    Find stations close to a geographical point
+    :param lat: Geographic latitude of the point
+    :param lon: Geographic longitude of the point
+    :param target: Target city (Lille, Lyon, Paris, Rennes)
+    :param limit: Maximum stations to show
+    :return: The list of close stations
+    """
     return [station for station in db[target].aggregate([
         {"$geoNear": {
             "near": [lat, lon],
@@ -26,6 +35,26 @@ def find_geo_stations(lat, lon, target, limit):
     ])]
 
 
+def show_station_data(station):
+    """
+    Show relevant information about the station (name, available bikes, tpe)
+    :param station: Station to show information from
+    """
+    name = station["name"].encode('utf-8').strip()
+    available = station["available"]
+    tpe = "Yes" if station["tpe"] else "No"
+
+    if available < 0:
+        available_text = "<no valid data for available bikes>"
+    else:
+        available_text = "{} bike(s) available".format(available)
+
+    print("- {}: {}, TPE: {}".format(
+        name,
+        available_text,
+        tpe))
+
+
 def main():
     args = docopt(__doc__)
 
@@ -35,6 +64,7 @@ def main():
     limit = 5
     target = None
 
+    # Values from arguments
     if args["--limit"]:
         limit = int(args["--limit"])
     if args["--target"]:
@@ -43,6 +73,7 @@ def main():
     lon = float(args["<longitude>"])
     lat = float(args["<latitude>"])
 
+    # Find and show
     if target:
         if target.lower() not in targets:
             print("Target \"{}\" unavailable.\nPlease use one of: {}.".format(target, ", ".join(targets)))
@@ -50,18 +81,14 @@ def main():
 
         # Search for stations in specific collection
         for station in find_geo_stations(lat, lon, target.lower(), limit):
-            print("- {}: {}".format(station["name"].encode('utf-8').strip(), station["distance"]))
+            show_station_data(station)
     else:
         # Search in all collections
         for target in targets:
             print("{}:".format(target.title()))
             for station in find_geo_stations(lat, lon, target.lower(), limit):
-                print("- {}: {}".format(station["name"].encode('utf-8').strip(), station["distance"]))
+                show_station_data(station)
 
 
 if __name__ == '__main__':
     main()
-
-    # lat = 50.625880
-    # lon = 3.041086
-    # max_found = 5
