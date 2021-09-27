@@ -2,7 +2,7 @@
 
 TP M2 MongoDB Database
 
-- MIQUTE Gautier
+- MIQUET Gautier
 - WILLEMS Louis
 
 ## Getting started
