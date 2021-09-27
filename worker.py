@@ -211,6 +211,8 @@ def worker(refresh_delay=600, save=True, verbose=True):
         print("Worker running, refresh rate: {} seconds".format(refresh_delay))
 
     while True:
+        start = datetime.now()
+
         [lille, lyon, paris, rennes] = [get_stations_lille(), get_stations_lyon(), get_stations_paris(),
                                         get_stations_rennes()]
 
@@ -228,7 +230,14 @@ def worker(refresh_delay=600, save=True, verbose=True):
             if verbose:
                 print("{}: Saved entries to database".format(datetime.now()))
 
-        time.sleep(refresh_delay)
+        end = datetime.now()
+        diff = (end - start).total_seconds()
+
+        if verbose:
+            print("Took {} seconds".format(diff))
+
+        if diff < refresh_delay:
+            time.sleep(refresh_delay - diff)
 
 
 def main():
