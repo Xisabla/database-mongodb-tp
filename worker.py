@@ -30,6 +30,7 @@ API_BASEURL_LYON = "https://download.data.grandlyon.com/wfs/grandlyon?SERVICE=WF
 API_BASEURL_PARIS = "https://opendata.paris.fr/api/records/1.0/search/?dataset=velib-disponibilite-en-temps-reel"
 API_BASEURL_RENNES = "https://data.rennesmetropole.fr/api/records/1.0/search/" \
                      "?dataset=etat-des-stations-le-velo-star-en-temps-reel"
+LYON_AVAILABLE_BICYCLES = "https://transport.data.gouv.fr/gbfs/lyon/station_status.json"
 
 # Worker configuration
 REFRESH_DELAY = int(os.getenv("WORKER_REFRESH_DELAY"))
@@ -64,13 +65,14 @@ def get_stations_lyon():
     return [
         {
             "name": s.get("properties", {}).get("nom").title(),
-            "geometry": s.get("geometry"),
+            "geometry": s.get("geometry", {}).get("coordinates"),
             "size": s.get("properties", {}).get("nbbornettes"),
-            "tpe": False,  # No information in API response, False by default
-            "available": -1,  # No information in API response, -1 by default
+            "tpe": v.get("is_installed"), 
+            "available": v.get("num_bikes_available"),
             "date": datetime.utcnow()
         }
         for s in get_raw_stations_lyon()
+        for v in get_lyon_available_bikes() if int(v.get("station_id")) == s.get("properties", {}).get("idstation")
     ]
 
 
@@ -141,6 +143,19 @@ def get_raw_stations_lyon():
     response_json = json.loads(response.text.encode("utf8"))
 
     return response_json.get("features", [])
+
+
+def get_lyon_available_bikes():
+    """
+    Get available bikes per station for Lyon
+    :return: Raw json from the official Transport Data API
+    """
+    url = LYON_AVAILABLE_BICYCLES
+
+    response = requests.request("GET", url)
+    response_json = json.loads(response.text.encode("utf8"))
+
+    return response_json.get("data", {}).get("stations", [])
 
 
 def get_raw_stations_paris():
