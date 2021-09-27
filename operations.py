@@ -1,209 +1,127 @@
-import json
-import os
+#!/usr/bin/env python3
+"""Perform operations on station entries
+Usage:
+    operations.py find <city> <partial_name>
+    operations.py delete <city> <station>
+    operations.py update <city> <station>
+    operations.py [-h | --help]
+"""
+import re
 import sys
-import requests
-import time
 from database import db
-from datetime import datetime
 from docopt import docopt
-from dotenv import load_dotenv
+from worker import get_stations_lille, get_stations_lyon, get_stations_paris, get_stations_rennes
 
-load_dotenv()
-
-
-# ------------------------------------------ CONSTANTS ------------------------------------------ #
-
-# API URLs
-API_BASEURL_LILLE = "https://opendata.lillemetropole.fr/api/records/1.0/search/?dataset=vlille-realtime"
-API_BASEURL_LYON = "https://download.data.grandlyon.com/wfs/grandlyon?SERVICE=WFS&VERSION=2.0.0&request=GetFeature"
-API_BASEURL_PARIS = "https://opendata.paris.fr/api/records/1.0/search/?dataset=velib-disponibilite-en-temps-reel"
-API_BASEURL_RENNES = "https://data.rennesmetropole.fr/api/records/1.0/search/" \
-                     "?dataset=etat-des-stations-le-velo-star-en-temps-reel"
-LYON_AVAILABLE_BICYCLES = "https://transport.data.gouv.fr/gbfs/lyon/station_status.json"
-
-
-# --------------------------------------- STATION GETTERS --------------------------------------- #
-
-def get_raw_stations_lille():
-    """
-    Get stations information for Lille
-    :return: Raw json from the Lille OpenData API
-    """
-    url = API_BASEURL_LILLE + \
-          "&q=" \
-          "&rows=300" \
-          "&lang=fr" \
-          "&timezone=Europe%2FParis"
-
-    response = requests.request("GET", url)
-    response_json = json.loads(response.text.encode("utf8"))
-
-    return response_json.get("records", [])
-
-
-def get_raw_stations_lyon():
-    """
-    Get stations information for Lyon
-    :return: Raw json from the GrandLyon download API
-    """
-    url = API_BASEURL_LYON + \
-          "&typename=pvo_patrimoine_voirie.pvostationvelov" \
-          "&outputFormat=application/json;%20subtype=geojson" \
-          "&SRSNAME=EPSG:4171"
-
-    response = requests.request("GET", url)
-    response_json = json.loads(response.text.encode("utf8"))
-
-    return response_json.get("features", [])
-
-
-def get_lyon_available_bikes():
-    """
-    Get available bikes per station for Lyon
-    :return: Raw json from the official Transport Data API
-    """
-    url = LYON_AVAILABLE_BICYCLES
-
-    response = requests.request("GET", url)
-    response_json = json.loads(response.text.encode("utf8"))
-
-    return response_json.get("data", {}).get("stations", [])
-
-
-def get_raw_stations_paris():
-    """
-    Get stations information for Paris
-    :return: Raw json from the Paris OpenData API
-    """
-    url = API_BASEURL_PARIS + \
-          "&q=" \
-          "&lang=fr" \
-          "&rows=3000" \
-          "&timezone=Europe%2FParis"
-
-    response = requests.request("GET", url)
-    response_json = json.loads(response.text.encode("utf8"))
-
-    return response_json.get("records", [])
-
-
-def get_raw_stations_rennes():
-    """
-    Get stations information for Rennes
-    :return: Raw json from the Rennes OpenData API
-    """
-    url = API_BASEURL_RENNES + \
-          "&q=" \
-          "&lang=fr" \
-          "&rows=3000" \
-          "&timezone=Europe%2FParis"
-
-    response = requests.request("GET", url)
-    response_json = json.loads(response.text.encode("utf8"))
-
-    return response_json.get("records", [])
-
-
-
-# ------------------------------------------- OPERATIONS -------------------------------------------- #
 
 def find_station(city, station_name):
+    """
+    Find station by name (with some letters)
+    :param city: City to find the station in
+    :param station_name: Station (partial) name
+    :return: The found station
+    """
     pat = re.compile(station_name, re.I)
 
-    if city == Lille:
-        return(db.lille.find({"name": {"$regex" : pat}}))
-    
-    if city == Paris:
-        return(db.paris.find({"name": {"$regex" : pat}}))
-
-    if city == Lyon:
-        return(db.lyon.find({"name": {"$regex" : pat}}))
-
-    if city == Rennes:
-        return(db.rennes.find({"name": {"$regex" : pat}}))
+    if city == "Lille":
+        return db.lille.find({"name": {"$regex": pat}})
+    if city == "Paris":
+        return db.paris.find({"name": {"$regex": pat}})
+    if city == "Lyon":
+        return db.lyon.find({"name": {"$regex": pat}})
+    if city == "Rennes":
+        return db.rennes.find({"name": {"$regex": pat}})
 
 
 def delete_station(city, station_name):
+    """
+    Delete a station by its name
+    :param city: City to delete the station in
+    :param station_name: Name of the station
+    """
     if city == "Lille":
-        db.lille.delete_many({"name" : station_name})
+        return db.lille.delete_many({"name": station_name})
     if city == "Paris":
-        db.paris.delete_many({"name" : station_name})
+        return db.paris.delete_many({"name": station_name})
     if city == "Lyon":
-        db.lyon.delete_many({"name" : station_name})
+        return db.lyon.delete_many({"name": station_name})
     if city == "Rennes":
-        db.rennes.delete_many({"name" : station_name})
+        return db.rennes.delete_many({"name": station_name})
 
 
 def update_station(city, station_name):
+    """
+    Update a station last entry from the API
+    :param city: City to update the station in
+    :param station_name: Name of the station
+    """
+    # Retrieve data from API
     if city == "Lille":
-        data = [{
-            "name": s.get("fields", {}).get("nom").title(),
-            "geometry": s.get("geometry"),
-            "size": s.get("fields", {}).get("nbvelosdispo") + s.get("fields", {}).get("nbplacesdispo"),
-            "tpe": s.get("fields", {}).get("type") == "AVEC TPE",
-            "available": s.get("fields", {}).get("nbvelosdispo"),
-            "date": datetime.utcnow()
-        }
-        for s in get_raw_stations_lille() if s.get("fields", {}).get("nom") == station_name ]
-
-        db.lille.replace_one(
-            {"name" : station_name},
-            data[0]
-        )
-
-    if city == "Paris":
-        data = [
-            {
-                "name": s.get("fields", {}).get("nom").title(),
-                "geometry": s.get("geometry"),
-                "size": s.get("fields", {}).get("nbvelosdispo") + s.get("fields", {}).get("nbplacesdispo"),
-                "tpe": s.get("fields", {}).get("type") == "AVEC TPE",
-                "available": s.get("fields", {}).get("nbvelosdispo"),
-                "date": datetime.utcnow()
-            }
-            for s in get_raw_stations_paris() if s.get("fields", {}).get("nom") == station_name 
-        ]
-
-        db.paris.replace_one(
-            {"name" : station_name},
-            data[0]
-        )
-
+        data = [s for s in get_stations_lille() if s["name"] == station_name]
     if city == "Lyon":
-        print("ok")
-        data = [
-            {
-                "name": s.get("properties", {}).get("nom").title(),
-                "geometry": s.get("geometry"),
-                "size": s.get("properties", {}).get("nbbornettes"),
-                "tpe": v.get("is_installed"),
-                "available": v.get("num_bikes_available"),
-                "date": datetime.utcnow()
-            }
-            for s in get_raw_stations_lyon() if s.get("properties", {}).get("nom").title() == station_name
-            for v in get_available_bicycles() if int(v.get("station_id")) == s.get("properties", {}).get("idstation")
-        ]
-
-        db.lyon.replace_one(
-            {"name" : station_name},
-            data[0]
-        )
-
+        data = [s for s in get_stations_lyon() if s["name"] == station_name]
+    if city == "Paris":
+        data = [s for s in get_stations_paris() if s["name"] == station_name]
     if city == "Rennes":
-        data = [
-            {
-                "name": s.get("fields", {}).get("nom").title(),
-                "geometry": s.get("geometry"),
-                "size": s.get("fields", {}).get("nombreemplacementsactuels"),
-                "tpe": False,  # No information in API response, False by default
-                "available": s.get("fields", {}).get("nombrevelosdisponibles"),
-                "date": datetime.utcnow()
-            }
-            for s in get_raw_stations_rennes() if s.get("fields", {}).get("nom") == station_name 
-        ]
+        data = [s for s in get_stations_rennes() if s["name"] == station_name]
 
-        db.rennes.replace_one(
-            {"name" : station_name},
-            data[0]
-        )
+    # Check for valid station
+    if len(data) < 1:
+        print("No station matching \"{}\" in city \"{}\"".format(station_name, city))
+        sys.exit(1)
 
+    # Update
+    return db.lille.replace_one({"name": station_name}, data[0])
+
+
+def main():
+    args = docopt(__doc__)
+
+    # Values from arguments
+    cities = ["Lille", "Lyon", "Paris", "Rennes"]
+    city = args["<city>"]
+
+    # Check for existing city
+    if city not in cities:
+        print("City \"{}\" unavailable.\nPlease use one of: {}.".format(city, ", ".join(cities)))
+        exit(1)
+
+    # Find station
+    if args["find"]:
+        name = args["<partial_name>"]
+
+        stations = set([station["name"].encode('utf-8').strip() for station in find_station(city, name)])
+
+        if len(stations) > 0:
+            print("Found {} station(s):".format(len(stations)))
+            for station in stations:
+                print(" - {}".format(station))
+        else:
+            print("No station was found")
+
+        sys.exit(0)
+
+    # Delete station
+    if args["delete"]:
+        name = args["<station>"]
+        count = delete_station(city, name).deleted_count
+
+        entry_txt = "entries" if count > 1 else "entry"
+
+        print("{} {} deleted".format(count, entry_txt))
+
+        sys.exit(0)
+
+    # Update station
+    if args["update"]:
+        name = args["<station>"]
+        count = update_station(city, name).modified_count
+
+        entry_txt = "entries" if count > 1 else "entry"
+
+        print("{} {} updated".format(count, entry_txt))
+
+        sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
