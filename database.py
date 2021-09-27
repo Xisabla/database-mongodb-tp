@@ -14,8 +14,7 @@ try:
 except PyMongoError as e:
     sys.exit("Failed worker initialization: " + str(e))
 
-# TODO: Change for production (main branch)
-db = client.gautier
+db = client.stations
 
 db.lille.create_index([("geometry", GEOSPHERE)])
 db.lyon.create_index([("geometry", GEOSPHERE)])
