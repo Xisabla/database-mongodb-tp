@@ -20,16 +20,14 @@ def find_station(city, station_name):
     :param station_name: Station (partial) name
     :return: The found station
     """
-    pat = re.compile(station_name, re.I)
-
     if city == "Lille":
-        return db.lille.find({"name": {"$regex": pat}})
+        return db.lille.find({"name": {"$regex": station_name, "$options": "i"}})
     if city == "Paris":
-        return db.paris.find({"name": {"$regex": pat}})
+        return db.paris.find({"name": {"$regex": station_name, "$options": "i"}})
     if city == "Lyon":
-        return db.lyon.find({"name": {"$regex": pat}})
+        return db.lyon.find({"name": {"$regex": station_name, "$options": "i"}})
     if city == "Rennes":
-        return db.rennes.find({"name": {"$regex": pat}})
+        return db.rennes.find({"name": {"$regex": station_name, "$options": "i"}})
 
 
 def delete_station(city, station_name):
