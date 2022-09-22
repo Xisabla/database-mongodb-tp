@@ -1,14 +1,5 @@
-#!/usr/bin/env python3
-"""Find close stations
+#/usr/bin/env python3
 
-Usage:
-    find_station.py <latitude> <longitude> [-h | --help] [--target=<town>] [--limit=<n>]
-
-Options:
-    -h --help       Show this screen
-    --target=<town> Find stations in a specific town ("Lille", "Lyon", "Paris", "Rennes")
-    --limit=<n>     Number of stations to show [default=5]
-"""
 from database import db
 from docopt import docopt
 from pymongo import ASCENDING, DESCENDING
